@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Mobile Bingo Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#111418" />
+</head>
+<body>
+  <!-- Pre-Game Lobby -->
+  <div id="preGameLobby" class="lobby-modal" role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">
+    <div class="lobby-content">
+      <h2 id="lobbyTitle" class="lobby-title">Pre-Game Lobby</h2>
+      <div class="lobby-section" aria-labelledby="buyInTitle">
+        <h3 id="buyInTitle" class="lobby-subtitle">Buy-In Options</h3>
+        <div class="buyin-options" role="radiogroup" aria-label="Ticket buy-in price tiers">
+          <button type="button" class="buyin-option" data-tickets="1" aria-pressed="false" aria-label="1 ticket 10 pence"><span class="tickets-count">1 TICKET</span><span class="tickets-price">10p</span></button>
+          <button type="button" class="buyin-option" data-tickets="2" aria-pressed="false" aria-label="2 tickets 20 pence"><span class="tickets-count">2 TICKETS</span><span class="tickets-price">20p</span></button>
+          <button type="button" class="buyin-option" data-tickets="3" aria-pressed="false" aria-label="1 strip 30 pence"><span class="tickets-count">1 STRIP</span><span class="tickets-price">30p</span></button>
+          <button type="button" class="buyin-option" data-tickets="4" aria-pressed="false" aria-label="2 strips 60 pence"><span class="tickets-count">2 STRIPS</span><span class="tickets-price">60p</span></button>
+          <button type="button" class="buyin-option" data-tickets="5" aria-pressed="false" aria-label="3 strips 90 pence"><span class="tickets-count">3 STRIPS</span><span class="tickets-price">90p</span></button>
+          <button type="button" class="buyin-option" data-tickets="6" aria-pressed="false" aria-label="4 strips 1 pound 20 pence"><span class="tickets-count">4 STRIPS</span><span class="tickets-price">£1.20</span></button>
+          <button type="button" class="buyin-option" data-tickets="7" aria-pressed="false" aria-label="5 strips 1 pound 50 pence"><span class="tickets-count">5 STRIPS</span><span class="tickets-price">£1.50</span></button>
+          <button type="button" class="buyin-option" data-tickets="8" aria-pressed="false" aria-label="6 strips 1 pound 80 pence"><span class="tickets-count">6 STRIPS</span><span class="tickets-price">£1.80</span></button>
+          <button type="button" class="buyin-option" data-tickets="9" aria-pressed="false" aria-label="7 strips 2 pounds 10 pence"><span class="tickets-count">7 STRIPS</span><span class="tickets-price">£2.10</span></button>
+          <button type="button" class="buyin-option" data-tickets="10" aria-pressed="false" aria-label="8 strips 2 pounds 40 pence"><span class="tickets-count">8 STRIPS</span><span class="tickets-price">£2.40</span></button>
+          <button type="button" class="buyin-option" data-tickets="11" aria-pressed="false" aria-label="9 strips 2 pounds 70 pence"><span class="tickets-count">9 STRIPS</span><span class="tickets-price">£2.70</span></button>
+          <button type="button" class="buyin-option" data-tickets="12" aria-pressed="false" aria-label="10 strips 3 pounds"><span class="tickets-count">10 STRIPS</span><span class="tickets-price">£3</span></button>
+        </div>
+      </div>
+      <div class="lobby-section" aria-labelledby="avatarTitle">
+        <h3 id="avatarTitle" class="lobby-subtitle">Select Your Avatar</h3>
+        <div class="avatar-options" role="radiogroup" aria-label="Avatar choices">
+          <button type="button" class="avatar-btn" data-avatar="cab" aria-pressed="false" aria-label="Yellow cab">
+            <span class="avatar-icon cab" aria-hidden="true">
+              <svg width="32" height="20" viewBox="0 0 32 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="8" width="28" height="8" rx="2" fill="#FFD600" stroke="#333" stroke-width="1.5"/>
+                <rect x="10" y="4" width="12" height="6" rx="1.5" fill="#FFF176" stroke="#333" stroke-width="1.2"/>
+                <circle cx="8" cy="18" r="2" fill="#333"/>
+                <circle cx="24" cy="18" r="2" fill="#333"/>
+              </svg>
+            </span>
+            <span class="avatar-label">Yellow Cab</span>
+          </button>
+          <button type="button" class="avatar-btn" data-avatar="bus" aria-pressed="false" aria-label="Red double decker bus">
+            <span class="avatar-icon bus" aria-hidden="true">
+              <svg width="32" height="20" viewBox="0 0 32 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="6" width="28" height="10" rx="2" fill="#D32F2F" stroke="#333" stroke-width="1.5"/>
+                <rect x="4" y="8" width="24" height="3" rx="1" fill="#fff"/>
+                <rect x="4" y="12" width="6" height="2" rx="1" fill="#fff"/>
+                <rect x="12" y="12" width="6" height="2" rx="1" fill="#fff"/>
+                <rect x="20" y="12" width="6" height="2" rx="1" fill="#fff"/>
+                <circle cx="8" cy="18" r="2" fill="#333"/>
+                <circle cx="24" cy="18" r="2" fill="#333"/>
+              </svg>
+            </span>
+            <span class="avatar-label">Double Decker</span>
+          </button>
+          <button type="button" class="avatar-btn" data-avatar="motorbike" aria-pressed="false" aria-label="Harley-Davidson motorbike">
+            <span class="avatar-icon motorbike" aria-hidden="true">
+              <svg width="32" height="20" viewBox="0 0 32 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="16" r="3" fill="#333"/>
+                <circle cx="24" cy="16" r="3" fill="#333"/>
+                <rect x="10" y="13" width="8" height="2" rx="1" fill="#FFA726"/>
+                <rect x="14" y="10" width="4" height="3" rx="1" fill="#FFA726"/>
+                <rect x="18" y="13" width="2" height="2" rx="1" fill="#333"/>
+                <rect x="12" y="13" width="2" height="2" rx="1" fill="#333"/>
+              </svg>
+            </span>
+            <span class="avatar-label">Motorbike</span>
+          </button>
+          <button type="button" class="avatar-btn" data-avatar="tuktuk" aria-pressed="false" aria-label="Tuk tuk">
+            <span class="avatar-icon tuktuk" aria-hidden="true">
+              <svg width="32" height="20" viewBox="0 0 32 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="10" width="16" height="6" rx="2" fill="#4FC3F7" stroke="#333" stroke-width="1.2"/>
+                <rect x="6" y="8" width="8" height="4" rx="1" fill="#81D4FA"/>
+                <rect x="20" y="12" width="6" height="3" rx="1.5" fill="#FFD600" stroke="#333" stroke-width="1.2"/>
+                <circle cx="8" cy="18" r="2" fill="#333"/>
+                <circle cx="22" cy="18" r="2" fill="#333"/>
+              </svg>
+            </span>
+            <span class="avatar-label">Tuk Tuk</span>
+          </button>
+        </div>
+      </div>
+      <div class="lobby-actions">
+        <button id="startGameBtn" type="button" class="btn primary" aria-label="Start game with selected avatar" disabled>Start Game</button>
+      </div>
+    </div>
+  </div>
+  <header class="app-header" role="banner">
+    <h1 class="game-logo" aria-label="Traffic Light Bingo">
+      <span class="logo-word red-word">Traffic</span>
+      <span class="logo-word amber-word">Light</span>
+      <span class="logo-word green-word">Bingo</span>
+    </h1>
+  </header>
+
+  <main class="app-main">
+    <section class="panel draw-panel">
+      <div class="draw-top">
+        <button id="drawBtn" class="btn primary" type="button" aria-live="off">Draw Number</button>
+        <div class="sim-input-group" style="display:flex; flex-direction:column; gap:.35rem;">
+          <label for="simPlayerCount" style="font-size:.65rem; font-weight:600; letter-spacing:.4px; color:var(--text-dim);">Simulated Opponent Players</label>
+          <input id="simPlayerCount" type="number" min="0" max="200" value="0" aria-label="Number of simulated opponent players (each with 3 tickets)" style="background:#1b2430; border:1px solid #2a3745; color:var(--text); padding:.4rem .55rem; border-radius:6px; font-size:.75rem; width:140px;" />
+        </div>
+        <button id="autoCallBtn" class="btn secondary" type="button" aria-pressed="false">Auto Call</button>
+        <div class="draw-graphic" aria-live="polite" aria-atomic="true" aria-label="Last number drawn">
+          <span id="lastDrawGraphic" class="draw-number" data-empty="true">–</span>
+        </div>
+      </div>
+      <div class="traffic-light" role="group" aria-label="Prize traffic light">
+        <div class="light-row">
+          <div class="light red active" aria-hidden="true"></div>
+          <span class="prize-label red-prize" aria-label="1 column prize ten pounds">1 column prize £10</span>
+        </div>
+        <div class="light-row">
+          <div class="light amber" aria-hidden="true"></div>
+          <span class="prize-label amber-prize" aria-label="2 column prize twenty pounds">2 column prize £20</span>
+        </div>
+        <div class="light-row">
+          <div class="light green" aria-hidden="true"></div>
+          <span class="prize-label green-prize" aria-label="Full house prize forty pounds">Full house prize £40</span>
+        </div>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </section>
+    <section class="panel" aria-labelledby="leaderboard-title">
+      <h2 id="leaderboard-title" class="panel-title">Win Streak Leaderboard</h2>
+      <ol id="leaderboard" class="leaderboard" role="list" aria-label="Top 5 players">
+        <li class="lb-item"><span class="rank shape-star" role="img" aria-label="Alice1987 light blue star" data-shape="star"></span><span class="name">Alice1987</span><span class="score" data-score>0</span></li>
+        <li class="lb-item"><span class="rank shape-triangle" role="img" aria-label="Benwinner1 orange triangle" data-shape="triangle"></span><span class="name">Benwinner1</span><span class="score" data-score>0</span></li>
+        <li class="lb-item"><span class="rank shape-diamond" role="img" aria-label="Chloe432 pink diamond" data-shape="diamond"></span><span class="name">Chloe432</span><span class="score" data-score>0</span></li>
+        <li class="lb-item"><span class="rank shape-circle" role="img" aria-label="Dylan111 purple circle" data-shape="circle"></span><span class="name">Dylan111</span><span class="score" data-score>0</span></li>
+        <li class="lb-item"><span class="rank shape-square" role="img" aria-label="Eve2win white square" data-shape="square"></span><span class="name">Eve2win</span><span class="score" data-score>0</span></li>
+      </ol>
+    </section>
+    <section class="panel tickets-wrapper">
+      <div class="tickets-row" role="group" aria-label="Three bingo tickets side by side">
+        <div class="ticket-block" aria-labelledby="ticket-title">
+          <h3 id="ticket-title" class="ticket-subtitle" role="tab" aria-selected="true" tabindex="0" data-ticket="ticket">Ticket 1</h3>
+          <div id="ticket" class="ticket-grid" role="table" aria-label="Ticket 1 - 3 across by 5 down"></div>
+          <!-- Ticket 1 function buttons removed per request -->
+        </div>
+        <div class="ticket-block" aria-labelledby="ticket2-title">
+          <h3 id="ticket2-title" class="ticket-subtitle" role="tab" aria-selected="false" tabindex="0" data-ticket="ticket2">Ticket 2</h3>
+          <div id="ticket2" class="ticket-grid" role="table" aria-label="Ticket 2 - 3 across by 5 down"></div>
+          <!-- New Ticket 2 button removed per request -->
+        </div>
+        <div class="ticket-block" aria-labelledby="ticket3-title">
+          <h3 id="ticket3-title" class="ticket-subtitle" role="tab" aria-selected="false" tabindex="0" data-ticket="ticket3">Ticket 3</h3>
+          <div id="ticket3" class="ticket-grid" role="table" aria-label="Ticket 3 - 3 across by 5 down"></div>
+          <!-- New Ticket 3 button removed per request -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Universe grid removed per request -->
+    <div id="winnerModal" class="winner-modal" role="dialog" aria-modal="true" aria-labelledby="winnerModalTitle" hidden>
+      <div class="winner-content">
+        <!-- Stage 1 -->
+        <div id="winnerStage1" class="winner-stage" aria-labelledby="winnerModalTitle" role="group">
+          <h2 id="winnerModalTitle" class="stage-title">STOP! We have our first winner!</h2>
+          <div class="stage1-visual" aria-hidden="true">
+            <div class="stage1-circle-wrapper">
+              <div class="modal-traffic-light tl-stage" role="img" aria-label="Traffic light - stop indicated">
+                <div class="mtl-light red active" aria-hidden="true"></div>
+                <div class="mtl-light amber" aria-hidden="true"></div>
+                <div class="mtl-light green" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Stage 2 -->
+        <div id="winnerStage2" class="winner-stage stage-hidden" role="group" aria-live="polite">
+          <h2 class="stage-title">Congratulations winner 123!</h2>
+          <p class="winner-detail">You have won the 1 column prize!</p>
+        </div>
+      </div>
+    </div>
+    <div id="winnerModal2" class="winner-modal" role="dialog" aria-modal="true" aria-labelledby="winnerModal2Title" hidden>
+      <div class="winner-content">
+        <!-- 2 Column Prize Stage 1 -->
+        <div id="winner2Stage1" class="winner-stage" aria-labelledby="winnerModal2Title" role="group">
+          <h2 id="winnerModal2Title" class="stage-title">WAIT! We have a winner!</h2>
+          <div class="stage1-visual" aria-hidden="true">
+            <div class="stage1-circle-wrapper">
+              <div class="modal-traffic-light tl-stage" role="img" aria-label="Traffic light - wait indicated">
+                <div class="mtl-light red" aria-hidden="true"></div>
+                <div class="mtl-light amber active" aria-hidden="true"></div>
+                <div class="mtl-light green" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 2 Column Prize Stage 2 -->
+        <div id="winner2Stage2" class="winner-stage stage-hidden" role="group" aria-live="polite">
+          <h2 class="stage-title">Congratulations winner 888!</h2>
+          <p class="winner-detail">You have won the 2 column prize!</p>
+        </div>
+      </div>
+    </div>
+    <div id="winnerModal3" class="winner-modal" role="dialog" aria-modal="true" aria-labelledby="winnerModal3Title" hidden>
+      <div class="winner-content">
+        <!-- Full House Stage 1 -->
+        <div id="winner3Stage1" class="winner-stage" aria-labelledby="winnerModal3Title" role="group">
+          <h2 id="winnerModal3Title" class="stage-title">bin-GO! We have a winner!</h2>
+          <div class="stage1-visual" aria-hidden="true">
+            <div class="stage1-circle-wrapper">
+              <div class="modal-traffic-light tl-stage" role="img" aria-label="Traffic light - go indicated">
+                <div class="mtl-light red" aria-hidden="true"></div>
+                <div class="mtl-light amber" aria-hidden="true"></div>
+                <div class="mtl-light green active" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Full House Stage 2 -->
+        <div id="winner3Stage2" class="winner-stage stage-hidden" role="group" aria-live="polite">
+          <h2 class="stage-title">Congratulations winner 001!</h2>
+          <p class="winner-detail">You have won the full house prize!</p>
+        </div>
+      </div>
+    </div>
+    <!-- Leaderboard Champion Modal (appears after leaderboard animation delay) -->
+    <div id="leaderboardWinnerModal" class="winner-modal" role="dialog" aria-modal="true" aria-labelledby="leaderboardWinnerTitle" hidden>
+      <div class="winner-content champion-content">
+        <h2 id="leaderboardWinnerTitle" class="stage-title champion-title">Congratulations Alice1987!</h2>
+        <p class="winner-detail champion-detail">You had the game's longest win streak! You have won a free play on any arcade game!</p>
+        <div class="winner-actions champion-actions">
+          <button id="useFreePlayBtn" type="button" class="btn primary" aria-label="Use free play now">Use free play now</button>
+          <button id="keepFreePlayBtn" type="button" class="btn secondary" aria-label="Keep free play for later">Keep free play for later</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <small>Prototype • Bingo 45 • <span id="footerYear"></span></small>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
