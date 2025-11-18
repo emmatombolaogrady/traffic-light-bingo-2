@@ -18,6 +18,14 @@ let fullHouseWinnerFound = false;
 let firstPrizeColumnRef = null; // track first-prize column for delayed clearing
 let secondPrizeColumnsRef = null; // track second prize columns for delayed clearing
 let secondPrizeTicketIndex = null; // ticket index of second prize winner
+// Dynamic ticket support
+let tickets = [];            // Array of ticket grids (each ROWS x COLS)
+let ticketSets = [];         // Parallel array of Set<number> for quick membership
+let visibleTicketSets = [];  // Sets for the currently visible (top 3) tickets
+let playerStreaks = {};      // Sequential streak tracking reference (moved here for dynamic tickets)
+let visibleTicketOriginalIndices = []; // Original indices currently assigned to visible ticket containers
+let firstPrizeOriginalIndex = null;    // Original ticket index that won first prize
+let secondPrizeOriginalIndex = null;   // Original ticket index that won second prize
 // Timers for full house / leaderboard sequencing
 let fullHouseWinTimer = null;
 let leaderboardDelayTimer = null;
@@ -70,6 +78,7 @@ const keepFreePlayBtn = document.getElementById('keepFreePlayBtn');
 // Lobby elements
 const preGameLobby = document.getElementById('preGameLobby');
 const startGameBtn = document.getElementById('startGameBtn');
+const installBtn = document.getElementById('installBtn');
 // Leaderboard base players (starting sequential streak max = 0)
 const BASE_PLAYERS = ['Alice1987','Benwinner1','Chloe432','Dylan111','Eve2win'];
 let currentLeaderboard = BASE_PLAYERS.map(name => ({ name, max:0 }));
@@ -204,18 +213,166 @@ function init() {
   drawBtn.disabled = true;
   autoCallBtn.disabled = true;
   updateStatus('Select an avatar and a buy-in to begin.');
+  // Initialize dynamic viewport units & orientation class
+  setViewportUnits();
+  applyOrientationClass();
+}
+
+// Compute a heuristic score for how close a ticket is to winning (higher = closer)
+// Factors: completed columns, one-to-go columns, near full house (1 away), total hits.
+function computeTicketScorePhase(grid) {
+  // Phase-aware scoring: adjust priorities depending on which prize is active
+  if (!grid || !grid.length) return 0;
+  let hits = 0;
+  let completedCols = 0;
+  let oneToGoCols = 0;
+  let oneToGoGivenOneCompleted = 0; // number of one-to-go columns when exactly one column already complete
+  let fullHouseRemaining = 0;
+  for (let c = 0; c < COLS; c++) {
+    let colHits = 0;
+    for (let r = 0; r < ROWS; r++) {
+      if (drawnNumbers.has(grid[r][c])) colHits++;
+    }
+    if (colHits === ROWS) completedCols++;
+    else if (colHits === ROWS - 1) oneToGoCols++;
+  }
+  // Count near-second-prize catalyst (exactly one completed col and another 1 away)
+  if (completedCols === 1 && oneToGoCols > 0) {
+    oneToGoGivenOneCompleted = oneToGoCols; // emphasize this situation during second prize phase
+  }
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (drawnNumbers.has(grid[r][c])) hits++; else fullHouseRemaining++;
+    }
+  }
+  const nearFullHouse = fullHouseRemaining === 1 ? 1 : 0;
+  // Base weight constants (phase 1)
+  let W_COMPLETED = 600;
+  let W_ONE_TO_GO = 250;
+  let W_ONE_TO_GO_WITH_ONE_COMPLETED = 400; // special boost when chasing second prize
+  let W_NEAR_FULL = 900;
+  let W_HIT = 6;
+
+  // Adjust for phases
+  if (firstWinnerFound && !secondWinnerFound) {
+    // Emphasize building toward two completed columns
+    W_COMPLETED = 650; // still valuable
+    W_ONE_TO_GO = 300; // slightly more weight
+    W_ONE_TO_GO_WITH_ONE_COMPLETED = 700; // strong focus
+    W_NEAR_FULL = 200; // less relevant now
+    W_HIT = 4; // reduce generic hits weighting
+  } else if (secondWinnerFound && !fullHouseWinnerFound) {
+    // Full house chase
+    W_COMPLETED = 200; // columns less relevant now
+    W_ONE_TO_GO = 150;
+    W_ONE_TO_GO_WITH_ONE_COMPLETED = 180;
+    W_NEAR_FULL = 1400; // strongly prioritize near full house
+    W_HIT = 10; // reward overall progress toward full house
+  }
+  return (
+    completedCols * W_COMPLETED +
+    oneToGoCols * W_ONE_TO_GO +
+    oneToGoGivenOneCompleted * W_ONE_TO_GO_WITH_ONE_COMPLETED +
+    nearFullHouse * W_NEAR_FULL +
+    hits * W_HIT
+  );
+}
+
+// Reorder which tickets are visible (top 3) based on score – only before first prize found
+function reorderVisibleTickets() {
+  if (!tickets.length) return;
+  if (fullHouseWinnerFound) return; // Game ended; no need to reorder further
+  // Phase-aware scoring
+  let scored = tickets.map((grid, idx) => ({ idx, score: computeTicketScorePhase(grid), grid }));
+  scored.sort((a,b) => b.score - a.score || a.idx - b.idx);
+
+  // Pin winning ticket visibility for clarity during subsequent prize chase phases
+  if (firstWinnerFound && !secondWinnerFound && firstPrizeOriginalIndex != null) {
+    const inTop = scored.slice(0,3).find(e => e.idx === firstPrizeOriginalIndex);
+    if (!inTop) {
+      // Force include and re-sort just these 3 by score preserving forced ticket
+      const forced = scored.find(e => e.idx === firstPrizeOriginalIndex);
+      const topAdjusted = [forced, scored[0], scored[1]].filter((v,i,self)=> self.findIndex(x=>x.idx===v.idx)===i).slice(0,3);
+      scored = topAdjusted.concat(scored.filter(e => !topAdjusted.find(t=>t.idx===e.idx))); // keep order for remaining
+    }
+  } else if (secondWinnerFound && !fullHouseWinnerFound && secondPrizeOriginalIndex != null) {
+    const inTop = scored.slice(0,3).find(e => e.idx === secondPrizeOriginalIndex);
+    if (!inTop) {
+      const forced = scored.find(e => e.idx === secondPrizeOriginalIndex);
+      const topAdjusted = [forced, scored[0], scored[1]].filter((v,i,self)=> self.findIndex(x=>x.idx===v.idx)===i).slice(0,3);
+      scored = topAdjusted.concat(scored.filter(e => !topAdjusted.find(t=>t.idx===e.idx)));
+    }
+  }
+
+  const top = scored.slice(0,3);
+  ticketNumbers = top[0]?.grid || [];
+  ticketNumbers2 = top[1]?.grid || [];
+  ticketNumbers3 = top[2]?.grid || [];
+  visibleTicketSets = [
+    top[0] ? ticketSets[top[0].idx] : new Set(),
+    top[1] ? ticketSets[top[1].idx] : new Set(),
+    top[2] ? ticketSets[top[2].idx] : new Set()
+  ];
+  visibleTicketOriginalIndices = top.map(t => t.idx);
+  renderTicket();
+  renderTicket2();
+  renderTicket3();
+  // Reapply hit classes & prize highlights if any
+  [ticketEl, ticketEl2, ticketEl3].forEach(el => {
+    if (!el) return;
+    el.querySelectorAll('.ticket-cell').forEach(cell => {
+      const num = parseInt(cell.dataset.num, 10);
+      if (drawnNumbers.has(num)) cell.classList.add('hit');
+    });
+  });
+  reapplyPrizeHighlightsAfterReorder();
+  // Update ticket subtitles & aria labels
+  const subtitleEls = [
+    document.querySelector('h3.ticket-subtitle[data-ticket="ticket"]'),
+    document.querySelector('h3.ticket-subtitle[data-ticket="ticket2"]'),
+    document.querySelector('h3.ticket-subtitle[data-ticket="ticket3"]')
+  ];
+  subtitleEls.forEach((el,i) => {
+    if (!el) return;
+    const orig = visibleTicketOriginalIndices[i];
+    if (orig == null) { el.textContent = 'Ticket –'; return; }
+    el.textContent = `Ticket ${orig+1}`;
+  });
+  [ticketEl, ticketEl2, ticketEl3].forEach((grid,i) => {
+    if (!grid) return;
+    const orig = visibleTicketOriginalIndices[i];
+    if (orig == null) return;
+    grid.setAttribute('aria-label', `Ticket ${orig+1} - 3 across by 5 down`);
+  });
+  updateOneToGoColumns();
+}
+
+function reapplyPrizeHighlightsAfterReorder() {
+  // First prize column highlight
+  if (firstPrizeColumnRef) {
+    const { originalIndex, colIndex } = firstPrizeColumnRef;
+    const visPos = visibleTicketOriginalIndices.indexOf(originalIndex);
+    if (visPos !== -1) {
+      applyFirstPrizeHighlight(visPos, colIndex, true);
+    }
+  }
+  if (secondPrizeColumnsRef) {
+    const { originalIndex, cols } = secondPrizeColumnsRef;
+    const visPos = visibleTicketOriginalIndices.indexOf(originalIndex);
+    if (visPos !== -1) {
+      applySecondPrizeHighlights(visPos, cols, true);
+    }
+  }
 }
 
 function generateTicket() {
-  // Generate three tickets with NO overlapping numbers (partition full 1..45 across 3 tickets)
+  // Reset state & timers
   drawnNumbers.clear();
   lastDraw = null;
-  stopAutoCall(); // Stop auto-call when generating new tickets
-  // Clear any pending timers from previous game
+  stopAutoCall();
   if (fullHouseWinTimer) { clearTimeout(fullHouseWinTimer); fullHouseWinTimer = null; }
   if (leaderboardDelayTimer) { clearTimeout(leaderboardDelayTimer); leaderboardDelayTimer = null; }
   if (championPanelTimer) { clearTimeout(championPanelTimer); championPanelTimer = null; }
-  // Clear leaderboard champion highlight if present
   clearLeaderboardChampion();
   if (lastDrawGraphicEl) {
     lastDrawGraphicEl.dataset.empty = 'true';
@@ -224,40 +381,46 @@ function generateTicket() {
   }
   statusEl.className = 'status';
 
-  const allNums = Array.from({ length: UNIVERSE_SIZE }, (_, i) => i + 1);
-  shuffle(allNums);
-  const sizePerTicket = ROWS * COLS; // 15
-  const slice1 = allNums.slice(0, sizePerTicket).sort((a,b)=>a-b);
-  const slice2 = allNums.slice(sizePerTicket, sizePerTicket*2).sort((a,b)=>a-b);
-  const slice3 = allNums.slice(sizePerTicket*2, sizePerTicket*3).sort((a,b)=>a-b);
+  // Determine ticket count from buy-in (default 3)
+  const ticketCount = Math.max(1, parseInt(selectedBuyIn || '3', 10));
+  tickets = [];
+  ticketSets = [];
+  for (let t = 0; t < ticketCount; t++) {
+    const pool = Array.from({ length: UNIVERSE_SIZE }, (_, i) => i + 1);
+    shuffle(pool);
+    const flat = pool.slice(0, ROWS * COLS).sort((a,b)=>a-b);
+    const grid = reshapeTicket(flat);
+    tickets.push(grid);
+    ticketSets.push(new Set(flat));
+  }
+  // Seed legacy ticket variables with first three (or fewer) so existing logic works
+  ticketNumbers = tickets[0] || [];
+  ticketNumbers2 = tickets[1] || [];
+  ticketNumbers3 = tickets[2] || [];
+  visibleTicketSets = [ticketSets[0] || new Set(), ticketSets[1] || new Set(), ticketSets[2] || new Set()];
 
-  ticketNumbers = reshapeTicket(slice1);
-  ticketNumbers2 = reshapeTicket(slice2);
-  ticketNumbers3 = reshapeTicket(slice3);
-
+  // Render visible subset
   renderTicket();
   renderTicket2();
   renderTicket3();
   updateOneToGoColumns();
 
-  // Fresh draw pool (all numbers) since we regenerated all tickets
+  // Fresh draw pool
   drawPool = Array.from({ length: UNIVERSE_SIZE }, (_, i) => i + 1);
   shuffle(drawPool);
   drawBtn.disabled = false;
   firstWinnerFound = false;
   secondWinnerFound = false;
   fullHouseWinnerFound = false;
+  firstPrizeOriginalIndex = null;
+  secondPrizeOriginalIndex = null;
   if (winnerModal) winnerModal.hidden = true;
   if (winnerModal2) winnerModal2.hidden = true;
   if (winnerModal3) winnerModal3.hidden = true;
 
-  // Regenerate simulated opponent tickets if active
   if (simulatedPlayersCount > 0) {
     generateSimulatedPlayers(simulatedPlayersCount);
   }
-  // Precompute ticket Sets for visible tickets
-  visibleTicketSets = [new Set(slice1), new Set(slice2), new Set(slice3)];
-  // Hidden players will have their ticketSets built in generateSimulatedPlayers()
   initStreakTracking();
   computeAndRenderSequentialLeaderboard();
 }
@@ -296,6 +459,11 @@ function renderTicket() {
 function renderTicket2() {
   if (!ticketEl2) return;
   ticketEl2.innerHTML = '';
+  if (!ticketNumbers2 || !ticketNumbers2.length) {
+    ticketEl2.closest('.ticket-block')?.setAttribute('hidden','true');
+    return;
+  }
+  ticketEl2.closest('.ticket-block')?.removeAttribute('hidden');
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const num = ticketNumbers2[r][c];
@@ -314,6 +482,11 @@ function renderTicket2() {
 function renderTicket3() {
   if (!ticketEl3) return;
   ticketEl3.innerHTML = '';
+  if (!ticketNumbers3 || !ticketNumbers3.length) {
+    ticketEl3.closest('.ticket-block')?.setAttribute('hidden','true');
+    return;
+  }
+  ticketEl3.closest('.ticket-block')?.removeAttribute('hidden');
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const num = ticketNumbers3[r][c];
@@ -432,6 +605,30 @@ function attachEvents() {
       updateStartGameEnable();
     });
   });
+
+  // PWA install button logic
+  if (installBtn) {
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent mini-infobar on mobile
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.hidden = false;
+    });
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      installBtn.disabled = true;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+      installBtn.disabled = false;
+      updateStatus(outcome === 'accepted' ? 'App install started – find it on your home screen.' : 'Install dismissed. You can install later.');
+    });
+    // Hide if already standalone (iOS Safari uses navigator.standalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) installBtn.hidden = true;
+  }
 }
 
 function handleTicketTabActivate(tabEl) {
@@ -511,7 +708,7 @@ function speakNumber(num) {
     speak();
   }
 }
-  updateOneToGoColumns();
+  reorderVisibleTickets();
   updateLastDraw(num);
   // Removed traffic light cycling per request (keep static)
   checkColumnWin();
@@ -687,16 +884,19 @@ function updateLastDraw(num) {
 
 function checkColumnWin() {
   if (firstWinnerFound) return; // already have first prize
-  const tickets = [
-    { nums: ticketNumbers, el: ticketEl, username: TICKET_PLAYERS[0], hidden:false },
-    { nums: ticketNumbers2, el: ticketEl2, username: TICKET_PLAYERS[1] || 'Player 2', hidden:false },
-    { nums: ticketNumbers3, el: ticketEl3, username: TICKET_PLAYERS[2] || 'Player 3', hidden:false }
-  ];
-  hiddenPlayers.forEach(p => {
-    p.tickets.forEach(grid => tickets.push({ nums: grid, el: null, username: p.username, hidden:true }));
+  const containerEls = [ticketEl, ticketEl2, ticketEl3];
+  const allTickets = tickets.map((grid, idx) => {
+    const visPos = visibleTicketOriginalIndices.indexOf(idx);
+    return {
+      nums: grid,
+      el: visPos !== -1 ? containerEls[visPos] : null,
+      username: `Ticket ${idx+1}`,
+      hidden: visPos === -1
+    };
   });
-  for (let tIndex = 0; tIndex < tickets.length; tIndex++) {
-    const t = tickets[tIndex];
+  hiddenPlayers.forEach(p => p.tickets.forEach(grid => allTickets.push({ nums:grid, el:null, username:p.username, hidden:true })));
+  for (let tIndex = 0; tIndex < allTickets.length; tIndex++) {
+    const t = allTickets[tIndex];
     if (!t.nums.length) continue;
     for (let c = 0; c < COLS; c++) {
       let colComplete = true;
@@ -735,7 +935,9 @@ function declareFirstWinner(playerName, isHidden, ticketIndex, colIndex) {
     if (detail) detail.textContent = 'You have won the 1 column prize!';
   }
   if (!isHidden) {
-    applyFirstPrizeHighlight(ticketIndex, colIndex);
+    firstPrizeOriginalIndex = ticketIndex; // remember original
+    const visPos = visibleTicketOriginalIndices.indexOf(ticketIndex);
+    if (visPos !== -1) applyFirstPrizeHighlight(visPos, colIndex);
     clearTransientHighlights();
   }
   vibrate([60, 40, 120]);
@@ -747,16 +949,17 @@ function declareFirstWinner(playerName, isHidden, ticketIndex, colIndex) {
 }
 
 // Add red highlight class to the winning column; store reference for later removal
-function applyFirstPrizeHighlight(ticketIndex, colIndex) {
+function applyFirstPrizeHighlight(visibleIndex, colIndex, reapply=false) {
   const ticketSets = [ticketNumbers, ticketNumbers2, ticketNumbers3];
   const ticketEls = [ticketEl, ticketEl2, ticketEl3];
-  const nums = ticketSets[ticketIndex];
-  const container = ticketEls[ticketIndex];
+  const nums = ticketSets[visibleIndex];
+  const container = ticketEls[visibleIndex];
   if (!nums || !container) return;
-  // Remove any existing first prize highlight (shouldn't normally exist)
-  [ticketEl, ticketEl2, ticketEl3].forEach(el => {
-    el?.querySelectorAll('.ticket-cell.bingo-col-first').forEach(c => c.classList.remove('bingo-col-first'));
-  });
+  if (!reapply) {
+    [ticketEl, ticketEl2, ticketEl3].forEach(el => {
+      el?.querySelectorAll('.ticket-cell.bingo-col-first').forEach(c => c.classList.remove('bingo-col-first'));
+    });
+  }
   for (let r = 0; r < ROWS; r++) {
     const num = nums[r][colIndex];
     const cell = container.querySelector(`.ticket-cell[data-num='${num}']`);
@@ -765,17 +968,19 @@ function applyFirstPrizeHighlight(ticketIndex, colIndex) {
       cell.classList.add('bingo-col-first');
     }
   }
-  firstPrizeColumnRef = { ticketIndex, colIndex };
+  if (!reapply) firstPrizeColumnRef = { originalIndex: firstPrizeOriginalIndex, colIndex };
 }
 
 // Remove the red highlight after the modal sequence completes
 function clearFirstPrizeHighlight() {
   if (!firstPrizeColumnRef) return;
-  const { ticketIndex, colIndex } = firstPrizeColumnRef;
+  const { originalIndex, colIndex } = firstPrizeColumnRef;
   const ticketSets = [ticketNumbers, ticketNumbers2, ticketNumbers3];
   const ticketEls = [ticketEl, ticketEl2, ticketEl3];
-  const nums = ticketSets[ticketIndex];
-  const container = ticketEls[ticketIndex];
+  const visPos = visibleTicketOriginalIndices.indexOf(originalIndex);
+  if (visPos === -1) { firstPrizeColumnRef = null; return; }
+  const nums = ticketSets[visPos];
+  const container = ticketEls[visPos];
   if (!nums || !container) return;
   for (let r = 0; r < ROWS; r++) {
     const num = nums[r][colIndex];
@@ -811,14 +1016,19 @@ function runWinnerStages() {
 // Second prize detection: two completed columns on a single ticket
 function checkSecondPrize() {
   if (secondWinnerFound) return;
-  const tickets = [
-    { nums: ticketNumbers, el: ticketEl, username:TICKET_PLAYERS[0], hidden:false },
-    { nums: ticketNumbers2, el: ticketEl2, username:TICKET_PLAYERS[1] || 'Player 2', hidden:false },
-    { nums: ticketNumbers3, el: ticketEl3, username:TICKET_PLAYERS[2] || 'Player 3', hidden:false }
-  ];
-  hiddenPlayers.forEach(p => p.tickets.forEach(grid => tickets.push({ nums:grid, el:null, username:p.username, hidden:true })));
-  for (let tIndex = 0; tIndex < tickets.length; tIndex++) {
-    const t = tickets[tIndex];
+  const containerEls = [ticketEl, ticketEl2, ticketEl3];
+  const allTickets = tickets.map((grid, idx) => {
+    const visPos = visibleTicketOriginalIndices.indexOf(idx);
+    return {
+      nums: grid,
+      el: visPos !== -1 ? containerEls[visPos] : null,
+      username: `Ticket ${idx+1}`,
+      hidden: visPos === -1
+    };
+  });
+  hiddenPlayers.forEach(p => p.tickets.forEach(grid => allTickets.push({ nums:grid, el:null, username:p.username, hidden:true })));
+  for (let tIndex = 0; tIndex < allTickets.length; tIndex++) {
+    const t = allTickets[tIndex];
     if (!t.nums.length) continue;
     const completedCols = [];
     for (let c = 0; c < COLS; c++) {
@@ -844,8 +1054,10 @@ function declareSecondPrize(playerName, isHidden, ticketIndex, cols) {
   const ticketSets = [ticketNumbers, ticketNumbers2, ticketNumbers3];
   const ticketEls = [ticketEl, ticketEl2, ticketEl3];
   if (!isHidden) {
+    secondPrizeOriginalIndex = ticketIndex;
     clearSecondPrizeHighlights();
-    applySecondPrizeHighlights(ticketIndex, cols);
+    const visPos = visibleTicketOriginalIndices.indexOf(ticketIndex);
+    if (visPos !== -1) applySecondPrizeHighlights(visPos, cols);
   }
   updateStatus(`WAIT! Second prize winner: ${playerName}!`);
   // Update amber prize traffic light label with second winner name
@@ -884,13 +1096,13 @@ function clearSecondPrizeHighlights() {
 }
 
 // Apply amber highlight to second prize columns and store reference
-function applySecondPrizeHighlights(ticketIndex, cols) {
+function applySecondPrizeHighlights(visibleIndex, cols, reapply=false) {
   const ticketSets = [ticketNumbers, ticketNumbers2, ticketNumbers3];
   const ticketEls = [ticketEl, ticketEl2, ticketEl3];
-  const nums = ticketSets[ticketIndex];
-  const container = ticketEls[ticketIndex];
+  const nums = ticketSets[visibleIndex];
+  const container = ticketEls[visibleIndex];
   if (!nums || !container) return;
-  secondPrizeColumnsRef = { ticketIndex, cols: [...cols] };
+  if (!reapply) secondPrizeColumnsRef = { originalIndex: secondPrizeOriginalIndex, cols: [...cols] };
   cols.forEach(colIndex => {
     for (let r = 0; r < ROWS; r++) {
       const num = nums[r][colIndex];
@@ -906,11 +1118,13 @@ function applySecondPrizeHighlights(ticketIndex, cols) {
 // Clear amber second prize column highlight after modal sequence completes
 function clearSecondPrizeColumnHighlights() {
   if (!secondPrizeColumnsRef) return;
-  const { ticketIndex, cols } = secondPrizeColumnsRef;
+  const { originalIndex, cols } = secondPrizeColumnsRef;
   const ticketSets = [ticketNumbers, ticketNumbers2, ticketNumbers3];
   const ticketEls = [ticketEl, ticketEl2, ticketEl3];
-  const nums = ticketSets[ticketIndex];
-  const container = ticketEls[ticketIndex];
+  const visPos = visibleTicketOriginalIndices.indexOf(originalIndex);
+  if (visPos === -1) { secondPrizeColumnsRef = null; return; }
+  const nums = ticketSets[visPos];
+  const container = ticketEls[visPos];
   if (!nums || !container) return;
   cols.forEach(colIndex => {
     for (let r = 0; r < ROWS; r++) {
@@ -943,14 +1157,19 @@ function runSecondPrizeStages() {
 // Full House: all numbers on a single ticket marked
 function checkFullHouse() {
   if (fullHouseWinnerFound) return;
-  const tickets = [
-    { nums: ticketNumbers, el: ticketEl, username:TICKET_PLAYERS[0], hidden:false },
-    { nums: ticketNumbers2, el: ticketEl2, username:TICKET_PLAYERS[1] || 'Player 2', hidden:false },
-    { nums: ticketNumbers3, el: ticketEl3, username:TICKET_PLAYERS[2] || 'Player 3', hidden:false }
-  ];
-  hiddenPlayers.forEach(p => p.tickets.forEach(grid => tickets.push({ nums:grid, el:null, username:p.username, hidden:true })));
-  for (let tIndex = 0; tIndex < tickets.length; tIndex++) {
-    const t = tickets[tIndex];
+  const containerEls = [ticketEl, ticketEl2, ticketEl3];
+  const allTickets = tickets.map((grid, idx) => {
+    const visPos = visibleTicketOriginalIndices.indexOf(idx);
+    return {
+      nums: grid,
+      el: visPos !== -1 ? containerEls[visPos] : null,
+      username: `Ticket ${idx+1}`,
+      hidden: visPos === -1
+    };
+  });
+  hiddenPlayers.forEach(p => p.tickets.forEach(grid => allTickets.push({ nums:grid, el:null, username:p.username, hidden:true })));
+  for (let tIndex = 0; tIndex < allTickets.length; tIndex++) {
+    const t = allTickets[tIndex];
     if (!t.nums.length) continue;
     let allHit = true;
     outer: for (let r = 0; r < ROWS; r++) {
@@ -968,7 +1187,8 @@ function checkFullHouse() {
 function declareFullHouse(playerName, isHidden, ticketIndex) {
   fullHouseWinnerFound = true;
   const ticketContainers = [ticketEl, ticketEl2, ticketEl3];
-  const container = ticketContainers[ticketIndex];
+  const visPos = visibleTicketOriginalIndices.indexOf(ticketIndex);
+  const container = visPos !== -1 ? ticketContainers[visPos] : null;
   if (!isHidden) {
     container?.classList.add('fullhouse-win'); // Start animation immediately
   }
@@ -1270,6 +1490,27 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
+}
+// Update custom --vh unit on resize/orientation changes for consistent mobile sizing
+function setViewportUnits() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+function applyOrientationClass() {
+  const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+  document.body.classList.toggle('landscape', isLandscape);
+  document.body.classList.toggle('portrait', !isLandscape);
+}
+window.addEventListener('resize', () => { setViewportUnits(); applyOrientationClass(); });
+window.addEventListener('orientationchange', () => { setViewportUnits(); applyOrientationClass(); });
+
+// Register service worker (additional to inline fallback in HTML)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    if (!regs.length) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('SW registration failed:', err));
+    }
+  });
 }
 
 // Leaderboard dynamic updates removed; static HTML retained in index.html.

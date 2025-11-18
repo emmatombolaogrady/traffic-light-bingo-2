@@ -6,6 +6,17 @@
   <title>Mobile Bingo Prototype</title>
   <link rel="stylesheet" href="styles.css" />
   <meta name="theme-color" content="#111418" />
+  <meta name="description" content="Traffic Light Bingo – mobile friendly 5x3 ticket draw game." />
+  <!-- PWA & Mobile Meta -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Traffic Light Bingo" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- Basic icon placeholders (replace with real PNG assets in /icons) -->
+  <link rel="icon" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png" />
 </head>
 <body>
   <!-- Pre-Game Lobby -->
@@ -95,6 +106,7 @@
       <span class="logo-word amber-word">Light</span>
       <span class="logo-word green-word">Bingo</span>
     </h1>
+  <!-- Install App button removed per request -->
   </header>
 
   <main class="app-main">
@@ -241,5 +253,13 @@
   </footer>
 
   <script src="script.js" defer></script>
+  <script>
+    // Lightweight service worker registration fallback (kept here in case script.js defers earlier)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('SW reg failed', err));
+      });
+    }
+  </script>
 </body>
 </html>

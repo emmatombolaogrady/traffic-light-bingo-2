@@ -26,6 +26,12 @@
   --radius-md: 12px;
   --radius-full: 999px;
   --transition: 160ms cubic-bezier(.4,0,.2,1);
+  /* Dynamic viewport height (set in JS) */
+  --vh: 1vh;
+  /* Cell sizing tokens */
+  --cell-size-base: clamp(38px, 11.2vw, 58px);
+  --cell-size-small: 34px;
+  --cell-size-landscape: clamp(32px, 8.2vh, 50px);
   font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
 }
 
@@ -38,7 +44,9 @@ body {
   -webkit-font-smoothing: antialiased;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: calc(var(--vh) * 100); /* fallback handled by setting --vh */
+  /* Safe area padding for iOS notch devices */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 h1,h2 { margin: 0; font-weight: 600; }
@@ -210,8 +218,8 @@ h1,h2 { margin: 0; font-weight: 600; }
 }
 
 .ticket-grid {
-  /* Reduced ~30% from clamp(54px,16vw,82px) */
-  --cell-size: clamp(38px, 11.2vw, 58px);
+  /* Responsive cell sizing variable */
+  --cell-size: var(--cell-size-base);
   display: grid;
   grid-template-columns: repeat(3, var(--cell-size)); /* 3 across */
   grid-auto-rows: var(--cell-size); /* 5 rows will auto-flow */
@@ -448,11 +456,36 @@ h1,h2 { margin: 0; font-weight: 600; }
 }
 
 @keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.05);} 100%{transform:scale(1);} }
+/* Ultra narrow portrait devices */
+@media (max-width: 360px) {
+  .ticket-grid { --cell-size: var(--cell-size-small); gap:.35rem; }
+  .ticket-subtitle { font-size:.7rem; }
+  .draw-top { gap:.55rem; }
+  .draw-graphic { width:80px; height:80px; }
+  .draw-number { font-size:1.9rem; }
+}
+/* Landscape phones with constrained height */
+@media (orientation: landscape) and (max-height: 520px) {
+  body.landscape .app-main { grid-template-columns: 1fr 1fr; padding:.7rem .6rem 1rem; }
+  body.landscape .panel { padding:.6rem .6rem .8rem; }
+  body.landscape .ticket-grid { --cell-size: var(--cell-size-landscape); gap:.35rem; }
+  body.landscape .winner-content { width:min(400px,100%); padding:1rem .85rem 1.1rem; }
+  body.landscape .winner-content .stage-title { font-size:1rem; }
+  body.landscape .winner-detail { font-size:.75rem; }
+  body.landscape .draw-graphic { width:70px; height:70px; }
+  body.landscape .draw-number { font-size:1.5rem; }
+}
+/* Extremely short landscape (keyboard up) */
+@media (orientation: landscape) and (max-height: 420px) {
+  body.landscape .winner-modal { align-items:flex-start; padding:1rem .5rem; }
+  body.landscape .winner-content { transform:scale(.9); transform-origin:top center; }
+}
 @keyframes glow { from { text-shadow:0 0 0 var(--success);} to { text-shadow:0 0 14px #4ade8099;} }
 
 /* Universe grid styles removed (feature dropped) */
 
 .app-footer { text-align:center; padding: .75rem 1rem 1.25rem; font-size: .65rem; color: var(--text-dim); }
+.app-footer { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
 
 /* Responsive tuning */
 @media (max-width: 420px) {
@@ -467,3 +500,7 @@ h1,h2 { margin: 0; font-weight: 600; }
 ::-webkit-scrollbar-thumb { background: #1f2933; border-radius: 6px; border:2px solid #10151b; }
 ::-webkit-scrollbar-thumb:hover { background:#2b3947; }
 /* Confetti styles removed (feature deprecated) */
+
+/* Install button minor responsive adjustment */
+.install-btn { position:absolute; right:clamp(.5rem,3vw,1rem); top:50%; transform:translateY(-50%); }
+@media (max-width:560px){ .install-btn { position:static; transform:none; margin-top:.65rem; width:100%; justify-content:center; } }
