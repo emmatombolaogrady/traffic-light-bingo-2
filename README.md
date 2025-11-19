@@ -49,6 +49,37 @@ Open `index.html` in any modern browser (Chrome, Safari, Firefox, Edge). No buil
 ### Desktop
 Chrome / Edge will show an install indicator; you can also use the Install button.
 
+## GitHub Pages Deployment
+This repository is configured for automatic deployment to **GitHub Pages** using a workflow at `.github/workflows/pages.yml`.
+
+### How It Works
+1. On every push to `main`, the Action uploads the repository root as a Pages artifact.
+2. The Pages service publishes it to the `gh-pages` environment.
+3. Your live URL (after first successful deploy) will be:
+	`https://emmatombolaogrady.github.io/traffic-light-bingo-2/`
+
+### First-Time Enable Steps
+If Pages is not yet enabled:
+1. Go to: Repository → Settings → Pages.
+2. Source: Select `Deploy from a branch` (if not using the new Pages configuration) OR confirm the “GitHub Actions” deployment is active.
+3. Save. After the workflow finishes you’ll see the site URL.
+
+### PWA Path Considerations
+`manifest.json` uses `start_url` and `scope` set to `/traffic-light-bingo-2/` so the installed app works correctly under the project subpath. All asset references are relative, so they load under the Pages site root.
+
+### Updating
+Push commits to `main`; the workflow redeploys automatically. Clients may need a refresh for the new service worker to activate.
+
+### Local Preview
+For a closer Pages simulation locally, you can serve the folder under a subpath using a simple server:
+```bash
+python3 -m http.server 8080
+# then visit http://localhost:8080 and (optionally) simulate /traffic-light-bingo-2/ by placing contents inside that folder.
+```
+
+## Phase-Based Ticket Reordering
+Tickets continue to reorder after each prize phase (1 column → 2 columns → full house) using adaptive scoring weights. The original ticket number is preserved in its label even when it surfaces to the first visible position.
+
 ## Offline Use
 The service worker pre‑caches the core shell: `index.html`, `styles.css`, `script.js`, `manifest.json`. Subsequent loads work offline. Any future network requests fallback to the cached shell if offline.
 
